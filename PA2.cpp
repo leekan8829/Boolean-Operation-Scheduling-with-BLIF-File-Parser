@@ -271,8 +271,8 @@ void ASAP(Graph in_Graph,vector<string> dest_vec){
     //找出沒有predecessors的node
     //把它放到一個二維的vector[i][j]
     //i代表他在哪一個latency被完成的
-
-    vector<vector <string>> Non_predecessor;
+    int asap_latency=0;
+    vector<vector <string>> ASAP_OUT;
     vector<string> node_vec;        //放所有的node
     vector<string> no_pre_vec;      //放那些沒有pre的node
     for(auto &i:in_Graph.adjList_){     
@@ -292,25 +292,63 @@ void ASAP(Graph in_Graph,vector<string> dest_vec){
         }
     }
 
-    for(auto &i:no_pre_vec){
-        cout << i << " ";
-    }
-    
-    cout << endl;
+    //delete duplicate node
+    sort( node_vec.begin(), node_vec.end() );
+    node_vec.erase( unique( node_vec.begin(), node_vec.end() ), node_vec.end() );   
 
-    in_Graph.print_graph(dest_vec);
-    cout << "------Before delete------"<<endl;
-    for(auto &nonpre_node:no_pre_vec){      //將no_pre_vec裡的node 從graph中 remove
-        for(auto &dest_node:dest_vec){
-            int num = in_Graph.adjList_[dest_node].size();
-            vector<string>::iterator it;    //initial iterator
-            it = find(in_Graph.adjList_[dest_node].begin(),in_Graph.adjList_[dest_node].end(),nonpre_node); //找到欲刪除的位置
-            if(it!=in_Graph.adjList_[dest_node].end()){
-                //找到位置就刪掉
-                it = in_Graph.adjList_[dest_node].erase(it);
+
+
+    int flag = 1;   //0 是找不到任何點要work了
+
+    //asap algo start
+    while(flag){     //flag = 0 就中斷
+        asap_latency++; //calculate latency
+        flag = 0;
+
+        no_pre_vec.clear();
+        for(auto &i:node_vec){          //traversal graph 把沒有先代的node 放到 no_pre_vec
+            if(in_Graph.adjList_[i].empty()){
+                vector<string>::iterator it;
+                it = find(no_pre_vec.begin(),no_pre_vec.end(),i);
+                if(it != no_pre_vec.end())
+                    continue;
+                no_pre_vec.push_back(i);
             }
         }
+
+        for(auto &i:no_pre_vec){    //將node_vector裡面的沒有先代的去掉
+            vector<string>::iterator it;
+            it = find(node_vec.begin(),node_vec.end(),i);
+            if(it!=node_vec.end())
+                it = node_vec.erase(it);
+        }
+
+        // cout << "Nonpredecessor:";
+        // for(auto &i:no_pre_vec){
+        //     cout << i << " ";
+        // }
+        // cout << endl;
+
+        for(auto &nonpre_node:no_pre_vec){      //將no_pre_vec裡的node 從graph中 remove
+            for(auto &dest_node:dest_vec){
+                vector<string>::iterator it;    //initial iterator
+                it = find(in_Graph.adjList_[dest_node].begin(),in_Graph.adjList_[dest_node].end(),nonpre_node); //找到欲刪除的位置
+                if(it!=in_Graph.adjList_[dest_node].end()){
+                    //找到位置就刪掉
+                    it = in_Graph.adjList_[dest_node].erase(it);
+                    flag = 1;   //如果有delte就設1好讓他下個迴圈可以執行
+               }
+            }
+        }
+        ASAP_OUT.push_back(no_pre_vec);
+        //in_Graph.print_graph(dest_vec);
     }
-    in_Graph.print_graph(dest_vec);
-    cout << "------After delete------"<<endl;
+    for(int i=0;i<asap_latency;i++){
+        cout << "cycle " << i+1 <<" complete:";
+        for(auto &node:ASAP_OUT[i]){
+            cout<<node<<" ";
+        }
+        cout << endl;
+    }
+    cout << "Complete ASAP latency:" << asap_latency << endl;
 }
