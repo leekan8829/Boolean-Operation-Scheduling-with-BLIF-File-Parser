@@ -256,7 +256,8 @@ int main(int argc, char *argv[])
 
     cout << "This is " << Filemode <<endl;
     cout << "AND_OR_NOT:"<< And_or_Latency << " " << Or_con << " " << Not_con <<endl;
-    ASAP(new_graph,dest_vec);
+    //ASAP(new_graph,dest_vec);
+    ALAP(new_graph,dest_vec);
     
     ofstream ofs;
     ofs.open("function.out",ios::out);
@@ -282,21 +283,9 @@ void ASAP(Graph in_Graph,vector<string> dest_vec){
         }
     }
 
-    for(auto &i:node_vec){          //traversal graph 把沒有先代的node 放到 no_pre_vec
-        if(in_Graph.adjList_[i].empty()){
-            vector<string>::iterator it;
-            it = find(no_pre_vec.begin(),no_pre_vec.end(),i);
-            if(it != no_pre_vec.end())
-                continue;
-            no_pre_vec.push_back(i);
-        }
-    }
-
     //delete duplicate node
     sort( node_vec.begin(), node_vec.end() );
-    node_vec.erase( unique( node_vec.begin(), node_vec.end() ), node_vec.end() );   
-
-
+    node_vec.erase( unique( node_vec.begin(), node_vec.end() ), node_vec.end() );  
 
     int flag = 1;   //0 是找不到任何點要work了
 
@@ -351,4 +340,66 @@ void ASAP(Graph in_Graph,vector<string> dest_vec){
         cout << endl;
     }
     cout << "Complete ASAP latency:" << asap_latency << endl;
+}
+
+void ALAP(Graph in_Graph,vector<string> dest_vec){
+    vector<string> node_vec;        //放所有的node
+    vector<string> no_suc_vec;      //放沒有successor的node
+    vector<vector <string>> ALAP_OUT;
+
+    int latency = 0;
+
+    for(auto &i:in_Graph.adjList_){     
+        node_vec.push_back(i.first);
+        for(auto &j:i.second){
+            node_vec.push_back(j);
+        }
+    }
+    //delete duplicate node
+    sort( node_vec.begin(), node_vec.end() );
+    node_vec.erase( unique( node_vec.begin(), node_vec.end() ), node_vec.end() ); 
+    for(auto &i:node_vec){
+        cout << i << " ";
+    }
+    cout << endl;
+
+    in_Graph.print_graph(dest_vec);
+
+    cout << "----------------" <<endl;
+    while (!node_vec.empty())
+    {
+        latency = latency + 1; 
+        no_suc_vec.clear();
+        for(auto &node:node_vec){
+            int suc_flag=0;     //1等於有子代 0等於沒有子代
+            for(auto &dest:dest_vec){
+               vector<string>::iterator it;
+               it = find(in_Graph.adjList_[dest].begin(),in_Graph.adjList_[dest].end(),node);
+               if(it!=in_Graph.adjList_[dest].end()){
+                    suc_flag=1;
+                    //break;
+                }
+            }
+            if(suc_flag==0){
+                no_suc_vec.push_back(node);
+            }
+        }
+        cout <<"latency "<<latency<< " nonsucessor: ";
+        for(auto &i:no_suc_vec){
+            cout << i << " ";
+        }
+        cout << endl;
+        node_vec.clear();
+        for(auto &i:no_suc_vec){
+            for(auto &j:in_Graph.adjList_[i]){
+                node_vec.push_back(j);
+            }
+            in_Graph.adjList_.erase(i);
+        }
+        sort( node_vec.begin(), node_vec.end() );
+        node_vec.erase( unique( node_vec.begin(), node_vec.end() ), node_vec.end() ); 
+        in_Graph.print_graph(dest_vec);    
+        ALAP_OUT.push_back(no_suc_vec);
+    }
+
 }
