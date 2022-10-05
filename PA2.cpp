@@ -821,7 +821,7 @@ vector<vector<string>> boolean_function,map<string,int> hash_index,int input_lat
         string output_str="";
         //cout<< (input_latency-((int)ALAP_output.size()-1)) << endl;
         //if user input latency - ASAP latency <=0  break, nosolution
-        if( (input_latency-((int)ALAP_output.size()-1)) <=0 ){
+        if( (input_latency-((int)ALAP_output.size())) <=0 ){
             cout << "No feasible solution." << endl;
             break;
         }
@@ -953,8 +953,7 @@ vector<vector<string>> boolean_function,map<string,int> hash_index,int input_lat
         cout << level <<": " << output_str <<endl;
         level = level + 1;
     }
-
-    if( (input_latency-((int)ALAP_output.size()-1)) > 0 ){
+    if( (input_latency-((int)ALAP_output.size())) > 0 ){
         cout <<"AND: " <<resource["and"] << endl;
         cout <<"OR: " <<resource["or"] << endl;
         cout <<"NOT: " <<resource["not"] << endl;
