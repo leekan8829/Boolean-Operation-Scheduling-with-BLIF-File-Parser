@@ -54,13 +54,14 @@ void pop_front(std::vector<T>& vec)
 }
 
 void ASAP(Graph in_Graph,vector<string> dest_vec);
-void ALAP(Graph in_Graph,vector<string> dest_vec);
+vector<vector<string>>  ALAP(Graph in_Graph,vector<string> dest_vec);
 
 void ML_RCS(Graph in_Graph,vector<string> dest_vec,map<string,int> resource,
 vector<vector<string>> boolean_function,map<string,int> hash_index);
 
 
-void MR_LCS(Graph in_Graph,vector<string> dest_vec,int latency);
+void MR_LCS(Graph in_Graph,vector<string> dest_vec,map<string,int> resource,
+vector<vector<string>> boolean_function,map<string,int> hash_index,int input_latency);
 
 int main(int argc, char *argv[])
 {
@@ -269,7 +270,8 @@ int main(int argc, char *argv[])
     resource.insert(make_pair("or",1));
     resource.insert(make_pair("not",1));
 
-    ML_RCS(new_graph,dest_vec,resource,boolean_function,hash_index);
+    // ML_RCS(new_graph,dest_vec,resource,boolean_function,hash_index);
+    MR_LCS(new_graph,dest_vec,resource,boolean_function,hash_index,1);
 
     ofstream ofs;
     ofs.open("function.out",ios::out);
@@ -354,12 +356,12 @@ void ASAP(Graph in_Graph,vector<string> dest_vec){
     cout << "Complete ASAP latency:" << asap_latency << endl;
 }
 
-void ALAP(Graph in_Graph,vector<string> dest_vec){
+vector<vector<string>> ALAP(Graph in_Graph,vector<string> dest_vec){
     vector<string> node_vec;        //放所有的node
     vector<string> no_suc_vec;      //放沒有successor的node
     vector<vector <string>> ALAP_OUT;
 
-    int latency = 0;
+    int latency = 1;
 
     for(auto &i:in_Graph.adjList_){     
         node_vec.push_back(i.first);
@@ -370,14 +372,16 @@ void ALAP(Graph in_Graph,vector<string> dest_vec){
     //delete duplicate node
     sort( node_vec.begin(), node_vec.end() );
     node_vec.erase( unique( node_vec.begin(), node_vec.end() ), node_vec.end() ); 
-    for(auto &i:node_vec){
-        cout << i << " ";
-    }
-    cout << endl;
 
-    in_Graph.print_graph(dest_vec);
+    // for(auto &i:node_vec){
+    //     cout << i << " ";
+    // }
+    // cout << endl;
 
-    cout << "----------------" <<endl;
+    //in_Graph.print_graph(dest_vec);
+
+    //cout << "----------------" <<endl;
+
     while (!node_vec.empty())
     {
         latency = latency + 1; 
@@ -396,11 +400,12 @@ void ALAP(Graph in_Graph,vector<string> dest_vec){
                 no_suc_vec.push_back(node);
             }
         }
-        cout <<"latency "<<latency<< " nonsucessor: ";
-        for(auto &i:no_suc_vec){
-            cout << i << " ";
-        }
-        cout << endl;
+        //cout <<"latency "<<latency<< " nonsucessor: ";
+        // for(auto &i:no_suc_vec){
+        //     cout << i << " ";
+        // }
+        //cout << endl;
+
         node_vec.clear();
         for(auto &i:no_suc_vec){
             for(auto &j:in_Graph.adjList_[i]){
@@ -414,6 +419,14 @@ void ALAP(Graph in_Graph,vector<string> dest_vec){
         ALAP_OUT.push_back(no_suc_vec);
     }
 
+    // for(auto &i:ALAP_OUT){
+    //     for(auto &j:i){
+    //         cout << j << " ";
+    //     }
+    //     cout << endl;
+    // }
+
+    return ALAP_OUT;
 }
 
 
@@ -500,8 +513,6 @@ vector<vector<string>> boolean_function,map<string,int> hash_index){
     int and_count = 0;
     int or_count = 0;
     int not_count = 0;
-
-    int times = 2;
 
     vector<string> and_ready;
     vector<string>  or_ready;
@@ -643,8 +654,289 @@ vector<vector<string>> boolean_function,map<string,int> hash_index){
         level = level + 1;
     }
 
-    // cout << "level = " << level << endl;
+    cout <<"AND: " <<resource["and"] << endl;
+    cout <<"OR: " <<resource["or"] << endl;
+    cout <<"NOT: " <<resource["not"] << endl;
 }
-void MR_LCS(Graph in_Graph,vector<string> dest_vec,int latency){
 
+void MR_LCS(Graph in_Graph,vector<string> dest_vec,map<string,int> resource,
+vector<vector<string>> boolean_function,map<string,int> hash_index,int input_latency){
+
+    vector<vector<string>> ALAP_output;
+    map<string,int> node_deadline;
+
+    ALAP_output = ALAP(in_Graph,dest_vec);
+
+    reverse(ALAP_output.begin(),ALAP_output.end());
+
+    //紀錄每個node的deadline
+    for(int i=0;i<ALAP_output.size();i++){
+        for(int j=0;j<ALAP_output[i].size();j++){
+            node_deadline.insert(make_pair(ALAP_output[i][j],i));
+        }
+    }
+
+    vector<string> node_vec;        //放所有的node
+    vector<string> no_pre_vec;      //放那些沒有pre的node
+    map<string,vector<int>> node_content; //vector[0] = latency vector[1] = and vector[2] = or vector[1] = not 
+
+
+    for(auto &i:in_Graph.adjList_){     
+        node_vec.push_back(i.first);
+        for(auto &j:i.second){
+            node_vec.push_back(j);
+        }
+    }
+    sort( node_vec.begin(), node_vec.end() );
+    node_vec.erase( unique( node_vec.begin(), node_vec.end() ), node_vec.end() );
+
+
+    //count dest node operation
+    for(int des=0;des<dest_vec.size();des++){
+        vector<string> index_forbool;           //紀錄src node 以及 booleanfunction
+        string result="";                       //紀錄每一個dest的boolean function 用這個下去計算and or not
+
+        for(auto &s:in_Graph.adjList_[dest_vec[des]]){  //將欲處理的dest的src放入indexforbool 之後可以取出使用在result
+            index_forbool.push_back(s);
+        }
+
+        vector<vector<char>> temp;
+        for(auto &lines:boolean_function[hash_index[dest_vec[des]]]){
+            vector<char> temp2;
+            for(auto &ch:lines){
+                temp2.push_back(ch);
+            }
+            temp.push_back(temp2);
+        }
+
+
+        for(int i=0;i<boolean_function[hash_index[dest_vec[des]]].size();i++){
+            for(int j=0;j<temp[i].size()-1;j++){
+                if(temp[i][j]=='1'){
+                    result = result + index_forbool[j];
+                }
+                else if(temp[i][j]=='-') continue;
+                else if(temp[i][j]=='0'){
+                    result = result + index_forbool[j] + "'";
+                }            
+            }
+            if(i==boolean_function[hash_index[dest_vec[des]]].size()-1) continue;
+            result = result + "+";
+        }
+
+
+        //cout << result << endl;
+
+
+        //計算每個dest node所需要的and or not
+        for(auto &node:node_vec){
+            if(node==dest_vec[des]){
+                node_content[node].resize(4);
+                size_t found = result.find("+");
+                if(found != string::npos){
+                    node_content[node][2] = node_content[node][2] + 1;
+                }
+                else{
+                    found = result.find("'");
+                    if(found != string::npos){
+                        node_content[node][3] = node_content[node][3] + 1;
+                    }
+                    else{
+                        node_content[node][1] = node_content[node][1] + 1;
+                    }
+                }
+                //cout << node << " " << node_content[node][1]<< " " << node_content[node][2] << " " << node_content[node][3] << endl;
+            }
+        }
+    }
+
+
+    //RUN LCS
+    int level = 1;
+    int and_count = 0;
+    int or_count = 0;
+    int not_count = 0;
+
+    vector<string> and_ready;
+    vector<string>  or_ready;
+    vector<string>  not_ready;
+    vector<string>  done_set;
+
+    int flag = 1;   //0 是找不到任何點要work了
+
+
+    //先把input node 處理掉
+    for(auto &i:node_vec){          //traversal graph 把沒有先代的node 放到 no_pre_vec
+        if(in_Graph.adjList_[i].empty()){
+            vector<string>::iterator it;
+            it = find(no_pre_vec.begin(),no_pre_vec.end(),i);
+            if(it != no_pre_vec.end())
+                continue;
+            no_pre_vec.push_back(i);
+        }
+    }
+    for(auto &i:no_pre_vec){    //將node_vector裡面的沒有先代的去掉
+        vector<string>::iterator it;
+        it = find(node_vec.begin(),node_vec.end(),i);
+        if(it!=node_vec.end())
+            it = node_vec.erase(it);
+    }
+    for(auto &nonpre_node:no_pre_vec){      
+        for(auto &dest_node:dest_vec){
+            vector<string>::iterator it;    //initial iterator
+            it = find(in_Graph.adjList_[dest_node].begin(),in_Graph.adjList_[dest_node].end(),nonpre_node); //找到欲刪除的位置
+            if(it!=in_Graph.adjList_[dest_node].end()){
+                //找到位置就刪掉
+                it = in_Graph.adjList_[dest_node].erase(it);
+            }
+        }
+    }
+
+
+    while(flag){     //flag = 0 就中斷
+        flag = 0;
+        no_pre_vec.clear();
+        done_set.clear();
+        and_count=0;
+        or_count=0;
+        not_count=0;
+        string output_str="";
+        //cout<< (input_latency-((int)ALAP_output.size()-1)) << endl;
+        //if user input latency - ASAP latency <=0  break, nosolution
+        if( (input_latency-((int)ALAP_output.size()-1)) <=0 ){
+            cout << "No solution" << endl;
+            break;
+        }
+
+
+        for(auto &i:node_vec){          //traversal graph 把沒有先代的node 放到 no_pre_vec
+            if(in_Graph.adjList_[i].empty()){
+                vector<string>::iterator it;
+                it = find(no_pre_vec.begin(),no_pre_vec.end(),i);
+                if(it != no_pre_vec.end())
+                    continue;
+                no_pre_vec.push_back(i);
+            }
+        }
+
+        for(auto &i:no_pre_vec){    //將node_vector裡面的沒有先代的去掉
+            vector<string>::iterator it;
+            it = find(node_vec.begin(),node_vec.end(),i);
+            if(it!=node_vec.end())
+                it = node_vec.erase(it);
+        }
+
+        // // 去計算哪些operation可以做
+
+        if(!no_pre_vec.empty()){
+            for(auto &i:no_pre_vec){
+                if(node_content[i][1]==1){      //加進 and ready set
+                   and_ready.push_back(i);
+                   //cout <<"and ready "<< i << endl;
+                    continue;
+                }
+                else if(node_content[i][2]==1){     //加進 or ready set
+                    or_ready.push_back(i);
+                    //cout <<"or ready "<< i << endl;
+                    continue;
+                }
+                else if(node_content[i][3]==1){     //加進 not ready set
+                    not_ready.push_back(i);
+                    //cout <<"not ready "<< i << endl;
+                    continue;
+                }
+            }
+        }
+
+        output_str=output_str+"{";
+
+
+        while(and_count<resource["and"]){
+            if(and_ready.empty()){
+                break;
+            }
+            done_set.push_back(and_ready.front());
+            output_str = output_str +" "+and_ready.front();
+            pop_front(and_ready);
+            and_count++;
+
+            //check 下一個要進來的操作是不是快到deadline了 資源夠不夠用
+            if( !(and_ready.empty()) ){
+                int slack = node_deadline[and_ready.front()] - level;
+                if(slack==0){
+                    if(and_count>=resource["and"]){
+                        resource["and"] = resource["and"] + 1;
+                    }
+                }
+            }
+
+        }
+
+        output_str=output_str+" }";
+
+        output_str=output_str+"{";
+        while(or_count<resource["or"]){
+            if(or_ready.empty()){
+                break;
+            }
+            done_set.push_back(or_ready.front());
+            output_str = output_str +" "+or_ready.front();
+            pop_front(or_ready);
+            or_count++;
+
+            //check 下一個要進來的操作是不是快到deadline了 資源夠不夠用
+            if( !(and_ready.empty()) ){
+                int slack = node_deadline[and_ready.front()] - level;
+                if(slack==0){
+                    if(and_count>=resource["and"]){
+                        resource["and"] = resource["and"] + 1;
+                    }
+                }
+            }
+        }
+        output_str=output_str+" }";
+
+        output_str=output_str+"{";
+        while(not_count<resource["not"]){
+            if(not_ready.empty()){
+                break;
+            }
+            done_set.push_back(not_ready.front());
+            output_str = output_str +" "+not_ready.front();
+            pop_front(not_ready);
+            and_count++;
+
+            //check 下一個要進來的操作是不是快到deadline了 資源夠不夠用
+            if( !(and_ready.empty()) ){
+                int slack = node_deadline[and_ready.front()] - level;
+                if(slack==0){
+                    if(and_count>=resource["and"]){
+                        resource["and"] = resource["and"] + 1;
+                    }
+                }
+            }
+        }
+        output_str=output_str+" }";
+        
+        for(auto &done_node:done_set){      
+            for(auto &dest_node:dest_vec){
+                vector<string>::iterator it;    //initial iterator
+                it = find(in_Graph.adjList_[dest_node].begin(),in_Graph.adjList_[dest_node].end(),done_node); //找到欲刪除的位置
+                if(it!=in_Graph.adjList_[dest_node].end()){
+                    //找到位置就刪掉
+                    it = in_Graph.adjList_[dest_node].erase(it);
+                    flag = 1;   //如果有delte就設1好讓他下個迴圈可以執行
+               }
+            }
+        }
+        if(!(and_ready.empty()) || !(or_ready.empty()) || !(not_ready.empty())){
+            flag = 1;
+        }
+        cout << level <<": " << output_str <<endl;
+        level = level + 1;
+    }
+
+    cout <<"AND: " <<resource["and"] << endl;
+    cout <<"OR: " <<resource["or"] << endl;
+    cout <<"NOT: " <<resource["not"] << endl;
 }
