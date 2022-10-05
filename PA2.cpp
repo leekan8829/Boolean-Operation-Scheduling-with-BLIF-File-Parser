@@ -69,9 +69,7 @@ int main(int argc, char *argv[])
     string line;
     string Filemode = argv[1];  // two mode -l and -r
     string Filename = argv[2];
-    string And_or_Latency  = argv[3];
-    string Or_con   = argv[4];
-    string Not_con  = argv[5];
+
 
     vector<string> blif_everyline_data;
     ifstream myFile;
@@ -175,44 +173,46 @@ int main(int argc, char *argv[])
         hash_index.insert(make_pair(dest_vec[i],i));
     }
 
-    string in_node = "";
-    cout << "Please input a node:";
-    cin >> in_node;
-    while (in_node.compare("0")!=0)
-    {
-        string predecessor;
-        string successor;
-        if(new_graph.adjList_[in_node].empty()){
-            predecessor = predecessor +"-";
-        }
-        else{
-            for(auto &pre:new_graph.adjList_[in_node]){
-                predecessor = predecessor + pre +",";
-            }
-        }
-        if(predecessor.back()==',')
-            predecessor.pop_back();
-        cout << "predecessor:" << predecessor <<endl;
+
+    //EDA PA2不需要
+    // string in_node = "";
+    // cout << "Please input a node:";
+    // cin >> in_node;
+    // while (in_node.compare("0")!=0)
+    // {
+    //     string predecessor;
+    //     string successor;
+    //     if(new_graph.adjList_[in_node].empty()){
+    //         predecessor = predecessor +"-";
+    //     }
+    //     else{
+    //         for(auto &pre:new_graph.adjList_[in_node]){
+    //             predecessor = predecessor + pre +",";
+    //         }
+    //     }
+    //     if(predecessor.back()==',')
+    //         predecessor.pop_back();
+    //     cout << "predecessor:" << predecessor <<endl;
 
 
-        for(int i=0;i<dest_vec.size();i++){
-            for(auto &suc:new_graph.adjList_[dest_vec[i]]){
-                if(in_node==suc){
-                    successor = successor + dest_vec[i] + ",";
-                    break;
-                }
-            }
-        }
-        if(successor.empty()){
-            successor = successor + "-";
-        }
-        if(successor.back()==',')
-            successor.pop_back();
-        cout << "successor:" << successor <<endl;
-        cout << "Please input a node:";
-        in_node.clear();
-        cin >> in_node;
-    }
+    //     for(int i=0;i<dest_vec.size();i++){
+    //         for(auto &suc:new_graph.adjList_[dest_vec[i]]){
+    //             if(in_node==suc){
+    //                 successor = successor + dest_vec[i] + ",";
+    //                 break;
+    //             }
+    //         }
+    //     }
+    //     if(successor.empty()){
+    //         successor = successor + "-";
+    //     }
+    //     if(successor.back()==',')
+    //         successor.pop_back();
+    //     cout << "successor:" << successor <<endl;
+    //     cout << "Please input a node:";
+    //     in_node.clear();
+    //     cin >> in_node;
+    // }
     
 
     //boolean output
@@ -259,19 +259,37 @@ int main(int argc, char *argv[])
         result = result + "\n";
     }
 
-    cout << "This is " << Filemode <<endl;
-    cout << "AND_OR_NOT:"<< And_or_Latency << " " << Or_con << " " << Not_con <<endl;
-    //ASAP(new_graph,dest_vec);
-    //ALAP(new_graph,dest_vec);
 
 
-    map<string,int> resource;
-    resource.insert(make_pair("and",2));
-    resource.insert(make_pair("or",1));
-    resource.insert(make_pair("not",1));
+    // string Filemode = argv[1];  // two mode -l and -r
+    // string Filename = argv[2];
+    // string And_or_Latency  = argv[3];
+    // string Or_con   = argv[4];
+    // string Not_con  = argv[5];
+    
+    if(Filemode=="-l"){
+        string And_or_Latency  = argv[3];
+        string Or_con   = argv[4];
+        string Not_con  = argv[5];
+        cout << "Resource-constrained Scheduling" << endl;
+        map<string,int> resource;
+        resource.insert(make_pair("and",stoi(And_or_Latency)));
+        resource.insert(make_pair("or",stoi(Or_con)));
+        resource.insert(make_pair("not",stoi(Not_con)));
+        ML_RCS(new_graph,dest_vec,resource,boolean_function,hash_index);
+        cout << "END" << endl;
+    }
+    else if (Filemode=="-r"){
+        string And_or_Latency  = argv[3];
+        cout << "Latency-constrained Scheduling" << endl;
+        map<string,int> resource;
+        resource.insert(make_pair("and",1));
+        resource.insert(make_pair("or",1));
+        resource.insert(make_pair("not",1));
+        MR_LCS(new_graph,dest_vec,resource,boolean_function,hash_index,stoi(And_or_Latency));
+        cout << "END" << endl;
+    }
 
-    // ML_RCS(new_graph,dest_vec,resource,boolean_function,hash_index);
-    MR_LCS(new_graph,dest_vec,resource,boolean_function,hash_index,1);
 
     ofstream ofs;
     ofs.open("function.out",ios::out);
