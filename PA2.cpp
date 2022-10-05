@@ -379,7 +379,7 @@ vector<vector<string>> ALAP(Graph in_Graph,vector<string> dest_vec){
     vector<string> no_suc_vec;      //放沒有successor的node
     vector<vector <string>> ALAP_OUT;
 
-    int latency = 1;
+    int latency = 0;
 
     for(auto &i:in_Graph.adjList_){     
         node_vec.push_back(i.first);
@@ -822,7 +822,7 @@ vector<vector<string>> boolean_function,map<string,int> hash_index,int input_lat
         //cout<< (input_latency-((int)ALAP_output.size()-1)) << endl;
         //if user input latency - ASAP latency <=0  break, nosolution
         if( (input_latency-((int)ALAP_output.size()-1)) <=0 ){
-            cout << "No solution" << endl;
+            cout << "No feasible solution." << endl;
             break;
         }
 
@@ -954,7 +954,10 @@ vector<vector<string>> boolean_function,map<string,int> hash_index,int input_lat
         level = level + 1;
     }
 
-    cout <<"AND: " <<resource["and"] << endl;
-    cout <<"OR: " <<resource["or"] << endl;
-    cout <<"NOT: " <<resource["not"] << endl;
+    if( (input_latency-((int)ALAP_output.size()-1)) > 0 ){
+        cout <<"AND: " <<resource["and"] << endl;
+        cout <<"OR: " <<resource["or"] << endl;
+        cout <<"NOT: " <<resource["not"] << endl;
+    }
+
 }
